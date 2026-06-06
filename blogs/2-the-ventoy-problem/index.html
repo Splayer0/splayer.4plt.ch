@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Ventoy Problem</title>
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      padding: 5px;
+    }
+
+    a {
+      color: #00ff00
+    }
+
+    .header {
+      background: #262626;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .hover_heads {
+      color: #eee;
+      cursor: pointer;
+    }
+
+    .hover_heads:hover {
+      color: #00ff00;
+    }
+
+    .sections {
+      background: #262626;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .custom-link {
+      color: #00ff00;
+    }
+
+    .main {
+      padding: 15px;
+      font-size: 1.0rem;
+    }
+
+    pre {
+      background-color: #262626;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto; 
+      white-space: pre; 
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <img src="../../header.png" alt="Splayer's Cove Art" style="width: clamp(280px, 40%, 500px); height: auto;"">
+    <!-- <h1 align=" center" style="font-family: monospace; font-size: 2.5rem;">Splayer's Cove</h1> -->
+  </div>
+  <div class="sections">
+    <a href="../../index.html">
+      <h2 class="hover_heads">
+        Home
+      </h2>
+    </a>
+    <a href="../../about.html">
+      <h2 class="hover_heads">
+        About
+      </h2>
+    </a>
+    <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#109;&#121;&#110;&#97;&#109;&#101;&#115;&#112;&#108;&#97;&#121;&#101;&#114;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;&#10;">
+      <h2 class="hover_heads">
+        Email
+      </h2>
+    </a>
+<!--     <a href="https://discord.com/users/799248479586615316">
+      <h2 class="hover_heads">
+        Discord
+      </h2>
+    </a> -->
+    <a href="../../blogs.html">
+      <h2 class="hover_heads">
+        Blog
+      </h2>
+    </a>
+  </div>
+  <div>
+    <div align="center">
+      <h1>The Ventoy Problem<h1>
+    </div>
+    <div align="left">
+      <h3>← <a href="../1-discovering-quiet/index.html" class="hover_heads">Previous Blog</a></h3>
+    </div>
+  </div>
+  <!-- <div align="right"> -->
+  <!-- <h3>Next →</h3> -->
+  <!-- </div> -->
+  <div class="main">
+    <p>
+      <h3>Problem? What Problem?</h3>
+      My distaste for <a href="https://www.ventoy.net/en/index.html" class="hover_heads">Ventoy</a> - the popular usb multiboot tool - started this year when i was working on <a href="https://github.com/Hogjects/Lufus" class="hover_heads">Lufus</a>. We wanted to add a multiboot feature, similar to ventoy, to Lufus as well and were brainstorming on various way in which we can achieve this. One of the ideas was that we can just use ventoy itself but due to it being GPL and Lufus being MIT we avoided it. Almost every multiboot tool uses GRUB anyways so there isn't really any alternative anyways. <br><br>
+      While researching on Ventoy and how it works I came to know that Ventoy uses 'hooks' or custom configuration for EVERY SINGLE distribution it supports to enable multiboot. This is a very nasty way to program stuff - mainly because it is very tiresome and redundant for developers as they need to update the configuration in case of major updates to enable multiboot - but we can't blame the Ventoy devs at all. <br><br>
+      The problem lies at the core of every distribution and how they implement their boot processes. On paper it might seem that they must have atleast some standard for this but in reality it is rarely followed. The UEFI standards tell where the boot firmware should be located but inside the ISO it can be anywhere the devs put it and as ventoy boots from this very ISO, it becomes a problem to boot using a universal configuration. Not to mention that some distros don't even use EFI among other techincal limitations. So the ventoy devs have to hardcode the paths in the configuration for every distro.
+      <h3>Okay, but how to fix this?</h3>
+      My first intuition to solve this and introduce a new uniform method was "Can a bootloader not just recursively look for the files it needs?". The first problem with this is that there can be multiple files of same name at different locations so how will the bootloader use the correct file? Secondly, even if the bootloader correctly identifies the firmware and boots the kernel, the kernel can not automatically know where the root filesystem is unless explicitly told. It tries to find a CD-ROM but since that won't exist, it will crash and cause a kernel panic. Lastly, there is also driver issues for different filesystem which ventoy solves by carrying its own drivers.
+      <h3>Okay, but how to actually fix this?</h3>
+      The problem is with distributions having different path structure right? So why not introduce a new standard which will implement uniformity ? Well, I am pretty sure people have tried this before and it hasn't worked. Why you ask? Here, the popular <a href="https://xkcd.com/927/" class="hover_heads">xkcd 927</a> will tell you: <br><br>
+      <div align="center">
+        <img src="standards.png" alt="There are now 15 competing standards" style="width: 40%;">
+      </div>
+      <h3>Is there even a solution?</h3>
+      <h3>[Depreceated. See updates at the end of this page.]</h3>
+      Well for starters, instead of creating a new standard - that is almost certain to not be followed - we can propose additions to existing standards and then implement those standards in the different distros. Turns out that there is already a specification standard which aims to achieve standardzied directory structure and format called <a href="https://uapi-group.org/specifications/specs/boot_loader_specification/" class="hover_heads">UAPI.1 The Bootloader Specification (BLS)</a> but it lacks the stuff needed for our purpose. As the BLS standard is for normal partition and not for ISOs, We have to add two new keys to the BLS standard file to support booting from ISOs:
+      <ol>
+        <li><b>iso_file</b></li>
+        This key tells bootloader the path to linux and initrd relative to the ISO so the bootloader can actually look inside the iso for the kernel files instead of trying to find it in the physical disk.
+        <li><b>iso_type</b></li>
+        As different distros use different hooks to find files (dracut, casper, mkinitcpio), the distro just specify it in this key.
+      </ol>
+      So the new BLS conf should look like this if we follow the example from the official UAPI.1 documentation:
+      <pre><code>
+      title        Fedora 19 (Rawhide Live ISO)
+      sort-key     fedora
+      machine-id   6a9857a393724b7a981ebb5b8495b9ea
+      version      3.8.0-2.fc19.x86_64
+      # New Keys
+      iso_file     /ISOs/Fedora-Workstation-Live-19.iso
+      iso_type     dracut
+      # ---
+      options      root=live:CDLABEL=FEDORA-19 quiet
+      architecture x64
+      linux        /6a9857a393724b7a981ebb5b8495b9ea/3.8.0-2.fc19.x86_64/linux
+      initrd       /6a9857a393724b7a981ebb5b8495b9ea/3.8.0-2.fc19.x86_64/initrd
+      extra        /6a9857a393724b7a981ebb5b8495b9ea/3.8.0-2.fc19.x86_64/somedata.cred
+      extra        /6a9857a393724b7a981ebb5b8495b9ea/3.8.0-2.fc19.x86_64/somethingelse.cred
+      </code></pre>
+      So now when the bootloader runs and reads the keys it can loopback the iso file and re-map that as the root path for executing stuff. This removes the need for hardcoded paths of firmware for each and every distro (as done in tools like Ventoy) as now the distro itself tells the bootloader where to find them. It is also backwards compaitable with older bootloaders.
+      <h3>So... what's next?</h3>
+      The problem with using BLS for now is that not every distro supports the BLS standard yet. So even after the new keys are added we will have to slowly make other distros support it. Regarding adding the new keys, that in itself is painstakingly hard and time-consuming to do. I have made a thread in the official github discussion for the new keys proposal (depreceated: read end of this page) but it hasnt seen any response for almost a month at the time of this writing. This method obviously only supports linux distros and for other OS such as Windows or MacOS hardcoded configs will still be needed I assume. Regarding the Type #2 enteries Unified Kernel Images (UKIs), it will be useless for this method since it compiles the command line parameters to a binary and will require the Type #1 conf anyways. <br><br>
+      Keep in mind that this is an experimental thought on how we can improve and unify the process. My deduction and reasoning can be wrong at times as I am not a professional system level programmer. Ventoy is a good tool right now (because it works) and I appreciate the hard work of every single developer. I am open to any feedback or advice you may have for me regarding which you can email me at <a class="hover_heads"; href="&#109;&#97;i&#108;&#116;&#111;:%6Dy&#110;%61&#x6d;e&#x73;p%6C%61%79e%72%40%67m&#97;%69&#108;&#x2e;co%6D">&#109;&#121;&#110;&#97;&#109;&#x65;&#x73;&#112;&#x6c;&#x61;&#121;&#x65;&#x72;&#x40;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#x6d;</a>. <br><br>
+      Last Edited: 1:40 AM 06 June 2026<br><br>
+      <br>
+      <div style="font-size: 1.25rem;">
+      <b>
+        UPDATE:
+        The creator of <a href="https://github.com/supergrub/supergrub" class="hover_heads">supergrub2disk</a>, adrian, replied to my blog in his <a href="https://www.youtube.com/live/LkumrlnYr5o?si=CE7DhI0tPdT0Eqth&t=505" class="hover_heads">livestream</a> (which I am very grateful for) and turns out that he had already devised a method earlier that  <a href="https://salsa.debian.org/live-team/live-boot/-/merge_requests/52" class="hover_heads">he had proposed</a> which uses <a href="https://web.archive.org/web/20210413114356/https://www.supergrubdisk.org/wiki/Loopback.cfg" class="hover_heads">loopback.cfg</a> and <a href="https://github.com/rescatux/liveid" class="hover_heads">liveid</a>. I am sure that it is clearly a superior method. Moreover I haven't seen any response to my proposal in the official UAPI.1 discussion anyways. I will be researching more about the loopback.cfg method and how we can implement it widely in the future.<br>
+        8:35 PM 06 June 2026
+      </b>
+      </div>
+    </p>
+  </div>
+</body>
+
+</html>
